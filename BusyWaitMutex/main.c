@@ -76,7 +76,7 @@ void* find_primes(void* params) {
     return NULL;
 }
 
-int main() {
+int producer_consumer() {
     int** ranges;
     ranges = create_ranges(1000, NUM_PRODUCERS);
     print_arr(ranges, NUM_PRODUCERS);
@@ -125,4 +125,15 @@ int main() {
     pthread_exit(NULL);
 
     return 0;
+}
+
+int readers_writers() {
+    // TODO: Implementation
+
+    return 0;
+}
+
+int main() {
+    // TODO: Implement something to the user select which problem he wants to run
+    return producer_consumer();
 }
