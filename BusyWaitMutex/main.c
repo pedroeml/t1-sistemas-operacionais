@@ -1,43 +1,45 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <pthread.h>
-#include "mutex.h"
-#include "sorted_list.h"
+#include "mutex/lamports_bakery.h"
+#include "list/sorted_list.h"
+#include "stack/stack.h"
+#include "utils.h"
 
 #define NUM_PRODUCERS 4
 
 Mutex* mutex;
-SortedList* list;
+Stack* stack;
 
-bool is_even(int number) {
-    return number % 2 == 0;
-}
+void* consumer(void *param) {
+    bool* producers_stopped;
+    producers_stopped = param;
 
-bool is_prime(int number) {
-    if (number == 1 || number == 2)
-        return true;
-    else if (is_even(number))
-        return false;
-    /*
-     * Considering it's not an even number, try every possible
-     * odd divisor within its half.
-     */
-    for (int divisor = 3; divisor <= number/2; divisor += 2) {
-        if (number % divisor == 0)
-            return false;
-    }
+    SortedList* list;
+    list = malloc_sorted_list();
 
-    return true;    // If this number has no divisor in that range, then it's prime.
+    while(!*producers_stopped || !is_empty(stack))    // While the producers still producing or stack isn't empty
+        if (!is_empty(stack))     // Makesure it isn't empty
+            add_number(list, pop(stack));
+
+    printf("Producers Threads have finished\n");
+
+    print_sorted_list(list);
+    free_sorted_list(list);
+
+    printf("Consumer Thread has finished\n");
+
+    pthread_exit(NULL);
+
+    return NULL;
 }
 
 void test_numbers(int start, int end, int thread_number) {
     for (int number = start; number <= end; number += 2) {
         if (is_prime(number)) {
-            printf("Thread %d found %d as prime number.\n", thread_number, number);
+            printf("Producer Thread %d found %d as prime number.\n", thread_number, number);
             lock(mutex, thread_number);
-            // TODO: Create a Consumer Thread to add prime numbers to the list
-            add_number(list, number);
+            push(stack, number);
             unlock(mutex, thread_number);
         }
     }
@@ -65,7 +67,7 @@ void* find_primes(void* params) {
         }
     }
 
-    printf("Thread %d finished\n", thread_number);
+    printf("Producer Thread %d has finished\n", thread_number);
 
     free(params);
 
@@ -74,60 +76,19 @@ void* find_primes(void* params) {
     return NULL;
 }
 
-
-int** create_ranges(int interval) {
-    int** ranges;
-    ranges = (int**) malloc(sizeof(int*)*NUM_PRODUCERS);
-
-    for (int i = 0; i < NUM_PRODUCERS; i++) {
-        int* row;
-        row = (int*) malloc(sizeof(int)*2);
-
-        *row = 1 + interval*i;
-        *(row+1) = interval + interval*i;
-
-        *(ranges+i) = row;
-    }
-
-    return ranges;
-}
-
-void print_arr(int** arr) {
-    printf("[ ");
-
-    int* row;
-    for (int i = 0; i < NUM_PRODUCERS - 1; i++) {
-        row = *(arr + i);
-        printf(" [%d, %d]", *row, *(row + 1));
-    }
-
-    row = *(arr + NUM_PRODUCERS - 1);
-    printf(" [%d, %d] ]\n", *row, *(row + 1));
-}
-
-int* generate_params(int start, int end, int thread_number) {
-    int* params;
-    params = (int*) malloc(sizeof(int)*3);
-
-    *params = start;
-    *(params+1) = end;
-    *(params+2) = thread_number;
-
-    return params;
-}
-
 int main() {
     int** ranges;
-    ranges = create_ranges(1000);
-    print_arr(ranges);
+    ranges = create_ranges(1000, NUM_PRODUCERS);
+    print_arr(ranges, NUM_PRODUCERS);
 
     pthread_t threads[NUM_PRODUCERS];
     int err_code;
     int* row;
     int* params;
+    bool producers_stopped = false;
 
     mutex = malloc_mutex(NUM_PRODUCERS);
-    list = malloc_sorted_list();
+    stack = malloc_stack();
 
     for (int i = 0; i < NUM_PRODUCERS; i++) {
         row = *(ranges + i);
@@ -141,13 +102,23 @@ int main() {
         }
     }
 
+    pthread_t consumer_thread;
+    err_code = pthread_create(&consumer_thread, NULL, consumer, (void*) &producers_stopped);
+
+    if (err_code){
+        printf("ERROR code is %d\n", err_code);
+        return -1;
+    }
+
     for (int i = 0; i < NUM_PRODUCERS; i++) {
         pthread_join(threads[i], NULL);
     }
 
-    print_sorted_list(list);
-    free_sorted_list(list);
+    producers_stopped = true;
 
+    pthread_join(consumer_thread, NULL);
+
+    free_stack(stack);
     free_mutex(mutex);
 
     printf("Thread main finished\n");

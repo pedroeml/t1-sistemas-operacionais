@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include "sorted_list.h"
 
-
 Node* malloc_node(int number) {
     Node* node;
     node = (Node*) malloc(sizeof(Node));
