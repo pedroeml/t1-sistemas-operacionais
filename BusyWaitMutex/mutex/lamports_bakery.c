@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include "mutex.h"
+#include "lamports_bakery.h"
 
 /***
  * Busy wait mutual exclusion for N > 2 threads: Lamport's bakery algorithm
