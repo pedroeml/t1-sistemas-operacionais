@@ -6,12 +6,14 @@
 #include "stack/stack.h"
 #include "utils.h"
 
-#define NUM_PRODUCERS 4
+#define NUM_THREADS 5
+#define RANGE 1000
 
 Mutex* mutex;
 Stack* stack;
+const int CONSUMER_THREAD_INDEX = NUM_THREADS - 1;
 
-void* consumer(void *param) {
+void* consume(void *param) {
     bool* producers_stopped;
     producers_stopped = param;
 
@@ -19,12 +21,17 @@ void* consumer(void *param) {
     list = malloc_sorted_list();
 
     while(!*producers_stopped || !is_empty(stack))    // While the producers still producing or stack isn't empty
-        if (!is_empty(stack))     // Makesure it isn't empty
-            add_number(list, pop(stack));
+        if (!is_empty(stack)) {     // Makesure it isn't empty
+            lock(mutex, CONSUMER_THREAD_INDEX);
+            int number = pop(stack);
+            unlock(mutex, CONSUMER_THREAD_INDEX);
+            add_number(list, number);
+        }
 
     printf("Producers Threads have finished\n");
 
     print_sorted_list(list);
+    printf("List's length: %d\n", list->length);
     free_sorted_list(list);
 
     printf("Consumer Thread has finished\n");
@@ -34,7 +41,7 @@ void* consumer(void *param) {
     return NULL;
 }
 
-void test_numbers(int start, int end, int thread_number) {
+void find_prime_numbers(int start, int end, int thread_number) {
     for (int number = start; number <= end; number += 2) {
         if (is_prime(number)) {
             printf("Producer Thread %d found %d as prime number.\n", thread_number, number);
@@ -45,7 +52,7 @@ void test_numbers(int start, int end, int thread_number) {
     }
 }
 
-void* find_primes(void* params) {
+void* produce(void *params) {
     int* parameters = params;
     int start = *parameters;
     int end = *(parameters + 1);
@@ -55,15 +62,15 @@ void* find_primes(void* params) {
 
     if (is_even(start)) {
         if (is_even(end)) {
-            test_numbers(start + 1, end - 1, thread_number);
+            find_prime_numbers(start + 1, end - 1, thread_number);
         } else {
-            test_numbers(start + 1, end, thread_number);
+            find_prime_numbers(start + 1, end, thread_number);
         }
     } else {
         if (is_even(end)) {
-            test_numbers(start, end - 1, thread_number);
+            find_prime_numbers(start, end - 1, thread_number);
         } else {
-            test_numbers(start, end, thread_number);
+            find_prime_numbers(start, end, thread_number);
         }
     }
 
@@ -78,23 +85,24 @@ void* find_primes(void* params) {
 
 int producer_consumer() {
     int** ranges;
-    ranges = create_ranges(1000, NUM_PRODUCERS);
-    print_arr(ranges, NUM_PRODUCERS);
+    ranges = create_ranges(RANGE, CONSUMER_THREAD_INDEX);
+    print_arr(ranges, CONSUMER_THREAD_INDEX);
 
-    pthread_t threads[NUM_PRODUCERS];
+    pthread_t threads[NUM_THREADS];
     int err_code;
     int* row;
     int* params;
     bool producers_stopped = false;
 
-    mutex = malloc_mutex(NUM_PRODUCERS);
+    mutex = malloc_mutex(NUM_THREADS);
     stack = malloc_stack();
 
-    for (int i = 0; i < NUM_PRODUCERS; i++) {
+    // Creating the producers threads
+    for (int i = 0; i < CONSUMER_THREAD_INDEX; i++) {   // The last index is for the producer
         row = *(ranges + i);
         params = generate_params(*row, *(row+1), i);
 
-        err_code = pthread_create(&threads[i], NULL, find_primes, (void*) params);
+        err_code = pthread_create(&threads[i], NULL, produce, (void *) params);
 
         if (err_code){
             printf("ERROR code is %d\n", err_code);
@@ -102,21 +110,21 @@ int producer_consumer() {
         }
     }
 
-    pthread_t consumer_thread;
-    err_code = pthread_create(&consumer_thread, NULL, consumer, (void*) &producers_stopped);
+    // Creating the consumer thread
+    err_code = pthread_create(&threads[CONSUMER_THREAD_INDEX], NULL, consume, (void*) &producers_stopped);
 
     if (err_code){
         printf("ERROR code is %d\n", err_code);
         return -1;
     }
 
-    for (int i = 0; i < NUM_PRODUCERS; i++) {
+    for (int i = 0; i < CONSUMER_THREAD_INDEX; i++) {
         pthread_join(threads[i], NULL);
     }
 
     producers_stopped = true;
 
-    pthread_join(consumer_thread, NULL);
+    pthread_join(threads[CONSUMER_THREAD_INDEX], NULL);
 
     free_stack(stack);
     free_mutex(mutex);
