@@ -1,32 +1,44 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <pthread.h>
-#include "mutex.c"
+#include "mutex.h"
 
 #define NUM_READERS 5
-#define NUM_WRITERS 2
+#define NUM_WRITERS 4
 #define DATA_SIZE 30
 
 char* dado;
 int pos;
 Mutex* mutexEscritores;
 
-void appendChar(char** string, int* pos) {
-    (*string)[*pos]='a';
+void appendChar(char** string, int* pos, char c) {
+    (*string)[*pos]=c;
     (*string)[(*pos)+1] = '\0';
     (*pos)++;
 }
 
-void* write(void* param) {
-    int* thread_number = param;
-    lock(mutexEscritores, *thread_number);
+void* writer(void* param) {
+    int* thread_number;
+    thread_number = param;
 
-    printf("Thread Escritora %d escrevendo\n", *thread_number);
-    appendChar(&dado, &pos);
-    printf("%s\n", dado);
-    
-    unlock(mutexEscritores, *thread_number);
+    if (*thread_number >= 0 && *thread_number <= NUM_WRITERS) { // If it has one digit
+        char str[2];
+        sprintf(str, "%d", *thread_number);
+        lock(mutexEscritores, *thread_number);
+
+        printf("Thread Escritora %d escrevendo\n", *thread_number);
+
+        appendChar(&dado, &pos, str[0]);
+        printf("toString: %s\n", dado);
+
+        unlock(mutexEscritores, *thread_number);
+    }
+
+    free(param);
+
+    pthread_exit(NULL);
+
+    return NULL;
 }
 
 int main() {
@@ -38,12 +50,12 @@ int main() {
     mutexEscritores = malloc_mutex(NUM_WRITERS);
 
     int err_code;
-    int i;
-    int* argument=(int*)malloc(sizeof(int));
-    for(i=0; i<NUM_WRITERS; i++) {
-        *argument=i;
-        printf("%d", *argument);
-        err_code = pthread_create(&escritores[i], NULL, write, (void*)argument );
+
+    for(int i = 0; i < NUM_WRITERS; i++) {
+        printf("%d\n", i);
+        int* thread_number = (int*) malloc(sizeof(int));
+        *thread_number = i;
+        err_code = pthread_create(&escritores[i], NULL, writer, (void*) thread_number);
 
         if (err_code){
             printf("ERROR code is %d\n", err_code);
