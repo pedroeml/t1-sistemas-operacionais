@@ -1,13 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <stdbool.h>
 #include "mutex/lamports_bakery.h"
 #include "list/sorted_list.h"
 #include "stack/stack.h"
 #include "utils.h"
 
 #define NUM_THREADS 5
-#define RANGE 1000
 
 Mutex* mutex;
 Stack* stack;
@@ -83,9 +83,9 @@ void* produce(void *params) {
     return NULL;
 }
 
-int producer_consumer() {
+int producer_consumer(int range) {
     int** ranges;
-    ranges = create_ranges(RANGE, CONSUMER_THREAD_INDEX);
+    ranges = create_ranges(range, CONSUMER_THREAD_INDEX);
     print_arr(ranges, CONSUMER_THREAD_INDEX);
 
     pthread_t threads[NUM_THREADS];
@@ -129,8 +129,7 @@ int producer_consumer() {
     free_stack(stack);
     free_mutex(mutex);
 
-    printf("Thread main finished\n");
-    pthread_exit(NULL);
+    printf("Producer-Consumer finished\n");
 
     return 0;
 }
@@ -142,6 +141,42 @@ int readers_writers() {
 }
 
 int main() {
-    // TODO: Implement something to the user select which problem he wants to run
-    return producer_consumer();
+    int input, return_code;
+    bool quit = false;
+
+    while (!quit) {
+        printf("[1] Producer-Consumer: finding prime numbers concurrently\n");
+        printf("[2] Readers-Writers Problem\n");
+        printf("[0] Quit\n");
+        printf(">>> ");
+        scanf("%d", &input);
+
+        switch (input) {
+            case 1:
+                printf("Finding prime numbers concurrently in 4 Threads. Given a range, each Producer\n");
+                printf("Thread will perform its search and their results will be joined by the Consumer\n");
+                printf("Thread. For example, if the range is 1000, Thread 0 will search from 1 - 999,\n");
+                printf("Thread 1 will search from 1001 - 1999, and so on...\nType the range value: ");
+                scanf("%d", &input);
+                return_code = producer_consumer(input);
+
+                if (return_code != 0)
+                    return return_code;
+
+                break;
+            case 2:
+                return_code = readers_writers();
+
+                if (return_code != 0)
+                    return return_code;
+
+                break;
+            default:
+                printf("Closing...");
+                quit = true;
+                break;
+        }
+    }
+
+    return 0;
 }
