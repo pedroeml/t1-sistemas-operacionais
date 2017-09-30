@@ -76,7 +76,7 @@ void join_all(pthread_t* threads, int length) {
     }
 }
 
-int main() {
+int readers_writers() {
     data = (char*) malloc(sizeof(char)*(NUM_WRITERS+1));
     last_char_index = 0;
     mutex_readers_index = NUM_WRITERS;
@@ -96,7 +96,11 @@ int main() {
     join_all(&(writers[0]), NUM_WRITERS);
     join_all(&(readers[0]), NUM_READERS);
 
-    printf("Thread main finished\n");
+    printf("Readers-Writers finished\n");
 
     return 0;
+}
+
+int main() {
+    return readers_writers();
 }
