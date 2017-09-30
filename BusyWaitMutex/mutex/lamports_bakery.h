@@ -1,9 +1,9 @@
-#ifndef BUSYWAITMUTEX_MUTEX_H
-#define BUSYWAITMUTEX_MUTEX_H
+#ifndef BUSYWAITMUTEX_LAMPORTS_BAKERY_H
+#define BUSYWAITMUTEX_LAMPORTS_BAKERY_H
 
 #include <stdbool.h>
 
-typedef struct mutex {
+typedef struct lamports_bakery {
     int number_threads;
     int* turns;
     bool* flags;
@@ -17,4 +17,4 @@ void unlock(Mutex* mutex, int thread_number);
 
 void free_mutex(Mutex* mutex);
 
-#endif //BUSYWAITMUTEX_MUTEX_H
+#endif //BUSYWAITMUTEX_LAMPORTS_BAKERY_H
