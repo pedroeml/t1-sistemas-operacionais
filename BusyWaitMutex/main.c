@@ -124,9 +124,7 @@ int producer_consumer(int range) {
         return -1;
     }
 
-    for (int i = 0; i < CONSUMER_THREAD_INDEX; i++) {
-        pthread_join(threads[i], NULL);
-    }
+    join_threads(&(threads[0]), CONSUMER_THREAD_INDEX);
 
     producers_stopped = true;
 
@@ -199,12 +197,6 @@ int create_threads(bool is_writer, pthread_t* threads, int length) {
     return 0;
 }
 
-void join_all(pthread_t* threads, int length) {
-    for (int i = 0; i < length; i++) {
-        pthread_join(*(threads+i), NULL);
-    }
-}
-
 int readers_writers() {
     data = (char*) malloc(sizeof(char)*(NUM_WRITERS+1));
     last_char_index = 0;
@@ -222,8 +214,8 @@ int readers_writers() {
     if (err_code_writers != 0 || err_code_readers != 0)
         return -1;
 
-    join_all(&(writers[0]), NUM_WRITERS);
-    join_all(&(readers[0]), NUM_READERS);
+    join_threads(&(writers[0]), NUM_WRITERS);
+    join_threads(&(readers[0]), NUM_READERS);
 
     printf("Readers-Writers finished\n");
 
