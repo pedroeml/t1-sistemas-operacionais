@@ -5,12 +5,11 @@
 
 #define NUM_READERS 5
 #define NUM_WRITERS 4
-#define DATA_SIZE 30
 
 char* data;
 int last_char_index;
 Mutex* mutex;
-int mutex_readers_index = NUM_WRITERS;
+int mutex_readers_index;
 
 void append_char(char **string, int i, char c) {
     (*string)[i] = c;
@@ -21,13 +20,12 @@ void* writer(void* param) {
     int* thread_number;
     thread_number = param;
 
-    if (*thread_number >= 0 && *thread_number < NUM_WRITERS) { // If it has one digit
+    if (*thread_number >= 0 && *thread_number < 10) { // If it has one digit, so append_char can be done
         char str[2];
         sprintf(str, "%d", *thread_number);
         lock(mutex, *thread_number);
-        printf("Thread Writer %d writing...", *thread_number);
         append_char(&data, last_char_index++, str[0]);
-        printf(" \"%s\"\n", data);
+        printf("Writer %d writing: \"%s\"\n", *thread_number, data);
         unlock(mutex, *thread_number);
     }
 
@@ -42,11 +40,9 @@ void* reader(void* param) {
     int* thread_number;
     thread_number = param;
 
-    if (*thread_number >= 0 && *thread_number < NUM_READERS) {
-        lock(mutex, mutex_readers_index);
-        printf("Thread Reader %d reading: \"%s\"\n", *thread_number, data);
-        unlock(mutex, mutex_readers_index);
-    }
+    lock(mutex, mutex_readers_index);
+    printf("Reader %d reading: \"%s\"\n", *thread_number, data);
+    unlock(mutex, mutex_readers_index);
 
     free(param);
 
@@ -81,8 +77,9 @@ void join_all(pthread_t* threads, int length) {
 }
 
 int main() {
-    data = (char*)malloc(sizeof(char)*DATA_SIZE);
+    data = (char*) malloc(sizeof(char)*(NUM_WRITERS+1));
     last_char_index = 0;
+    mutex_readers_index = NUM_WRITERS;
 
     pthread_t readers[NUM_READERS];
     pthread_t writers[NUM_WRITERS];
